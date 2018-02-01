@@ -7,5 +7,5 @@
 Google Maps API token can be found here:
  https://developers.google.com/maps/documentation/javascript/get-api-key
 '''
-noaa_api_token = 'zYKUphEjBWILVGlSxQOHxzGFRFNKaQdj'
-google_maps_api_token = 'AIzaSyDJCsFnZTQfrjwApxbi2jcBAK6_x6CaN9U'
+noaa_api_token = ''
+google_maps_api_token = ''
