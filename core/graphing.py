@@ -40,11 +40,23 @@ def pull_stations(token):
     """
     This function pulls a list of NOAA weather stations situated in the northwest
     """
+    current_date = dt.datetime.now()
+    # test which november to start on
+    if current_date.month >= 11:
+        # if month is november or december the year should be the same year
+        start_date = '{year}-11-01'.format(year=current_date.year)
+    else:
+        # if not take the previous november
+        start_date = '{year}-11-01'.format(year=current_date.year - 1)
+
     url = 'https://www.ncdc.noaa.gov/cdo-web/api/v2/stations?datasetid=GHCND&' \
           'limit=1000&' \
           'datacategoryid=TEMP&' \
           'offset=1000&' \
+          'datatypeid=TAVG&'\
           'extent=42.047165,-124.378791,48.955117,-117.148889'
+    print(url)
+
     #set token. this token is available by signing up on the noaa website https://www.ncdc.noaa.gov/cdo-web/token
 
     headers = {'token': token}
@@ -111,16 +123,24 @@ def generate_graph(station_id, token):
     data['FunChill.cumsum'] = data['FunChill'].cumsum().ffill()
     data['Force.cumsum'] = data['FunForce'].cumsum().ffill()
 
-    model_x, model_y = plot_model(lambda x: 114.4-(0.78*x), range(0,125))
-
+    model_x, model_y = plot_model(lambda x: 114.4-(0.776 * x), range(0, 140))
+    model_conhigh_x, model_conhigh_y = plot_model(lambda x: 121.67 - (0.776 * x), range(0, 140))
+    model_conlow_x, model_conlow_y = plot_model(lambda x: 107.13 - (0.776 * x), range(0, 140))
     sns.set_style("darkgrid")
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.plot(data['FunChill.cumsum'], data['Force.cumsum'])
-    ax.plot(model_x, model_y)
+    ax.plot(data['FunChill.cumsum'], data['Force.cumsum'], alpha=0.4)
+    ax.plot(model_x, model_y, alpha=0.4)
+
+    #plot confidence intervals
+    ax.plot(model_conhigh_x, model_conhigh_y, alpha=0.4, linestyle='--', color='black')
+    ax.plot(model_conlow_x, model_conlow_y, alpha=0.4, linestyle='--', color='black')
+
+    #line styles
     ax.set_xlabel('Chilling days')
     ax.set_ylabel('Forcing days')
     ax.set_title('Chilling and forcing accumulations from {} through {}'.format(start_date, end_date), fontsize=12)
 
+    #convert to binary to serve to webpage
     canvas = FigureCanvas(fig)
     png_output = BytesIO()
     canvas.print_png(png_output)
