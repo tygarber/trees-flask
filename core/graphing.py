@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from io import BytesIO
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 
 #chill function
@@ -30,7 +29,7 @@ def FunForce(temp, aF = 4.49, bF = -0.63):
 
 def plot_model(model, x_range, color='green'):
     """
-    This function graphs the model
+    This function graphs a model
     """
     x = np.array(x_range)
     y = model(x)
@@ -55,7 +54,6 @@ def pull_stations(token):
           'offset=1000&' \
           'datatypeid=TAVG&'\
           'extent=42.047165,-124.378791,48.955117,-117.148889'
-    print(url)
 
     #set token. this token is available by signing up on the noaa website https://www.ncdc.noaa.gov/cdo-web/token
 
@@ -71,10 +69,13 @@ def pull_stations(token):
     #dump into python list of dicts
     stations = http_response.json()
 
-    #only work with the results
+    #convert to dataframe to make sure station has data for the right time period
+    stations_df = pd.DataFrame(stations['results'])
 
-    stations = stations['results']
-    return stations
+    #filter stations that only have temp data in the correct range then convert back to dictionary
+    stations_dict = stations_df[stations_df['maxdate'] >= start_date].T.to_dict().values()
+
+    return stations_dict
 
 
 def generate_graph(station_id, token):
@@ -119,23 +120,32 @@ def generate_graph(station_id, token):
     data['FunChill'] = data['value'].apply(FunChill)
     data['FunForce'] = data['value'].apply(FunForce)
 
-    # cumulative sum for the calculated chill and force columns, forward fill missing data
-    data['FunChill.cumsum'] = data['FunChill'].cumsum().ffill()
-    data['Force.cumsum'] = data['FunForce'].cumsum().ffill()
+    # cumulative sum for the calculated chill and force columns
+    data['FunChill.cumsum'] = data['FunChill'].cumsum()
+    data['Force.cumsum'] = data['FunForce'].cumsum()
 
+    #create series related to the model, and confidence intervals
     model_x, model_y = plot_model(lambda x: 114.4-(0.776 * x), range(0, 140))
     model_conhigh_x, model_conhigh_y = plot_model(lambda x: 121.67 - (0.776 * x), range(0, 140))
     model_conlow_x, model_conlow_y = plot_model(lambda x: 107.13 - (0.776 * x), range(0, 140))
+
+    #import seaborn styling
     sns.set_style("darkgrid")
+
+    #create matplotlib figure with one axis
     fig, ax = plt.subplots(figsize=(6, 6))
+
+    #plot the chill, forcing days
     ax.plot(data['FunChill.cumsum'], data['Force.cumsum'], alpha=0.4)
+
+    #plot the model
     ax.plot(model_x, model_y, alpha=0.4)
 
     #plot confidence intervals
     ax.plot(model_conhigh_x, model_conhigh_y, alpha=0.4, linestyle='--', color='black')
     ax.plot(model_conlow_x, model_conlow_y, alpha=0.4, linestyle='--', color='black')
 
-    #line styles
+    #label axes
     ax.set_xlabel('Chilling days')
     ax.set_ylabel('Forcing days')
     ax.set_title('Chilling and forcing accumulations from {} through {}'.format(start_date, end_date), fontsize=12)
