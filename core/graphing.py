@@ -78,6 +78,28 @@ def pull_stations(token):
     return stations_dict
 
 
+def get_weather_data(station_id, token, start_date, end_date, offset):
+    #api noaa token can be found here:
+    #https://www.ncdc.noaa.gov/cdo-web/token
+    noaa_token = token #'zYKUphEjBWILVGlSxQOHxzGFRFNKaQdj'
+    #this url provides a list of stations
+    #url = 'https://www.ncdc.noaa.gov/cdo-web/api/v2/stations?datasetid=GHCND&limit=1000&datacategoryid=TEMP&offset=1000&extent=42.047165,-124.378791,48.955117,-117.148889'
+    url = 'http://www.ncdc.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND'\
+          '&datacategoryid=TEMP'\
+          '&stationid={}'\
+          '&startdate={}'\
+          '&enddate={}'\
+          '&offset={}'\
+          '&limit=1000'.format(station_id, start_date, end_date, offset)
+    # token as required by NOAA feed, you have to register for this
+    headers = {'token': token}
+    #send query string and header payload
+    http_response = requests.get(url, headers = headers)
+    #dump json into python dictionary
+    return http_response.json()
+
+
+
 def generate_graph(station_id, token):
     """
     This function pulls temperature data down from selected noaa station and generates
@@ -94,25 +116,38 @@ def generate_graph(station_id, token):
         start_date = '{year}-11-01'.format(year=current_date.year - 1)
     end_date = current_date.strftime('%Y-%m-%d')
 
-    # this url provides a list of stations
-    # url = 'https://www.ncdc.noaa.gov/cdo-web/api/v2/stations?datasetid=GHCND&limit=1000&datacategoryid=TEMP&offset=1000&extent=42.047165,-124.378791,48.955117,-117.148889'
-    url = 'http://www.ncdc.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND' \
-          '&datacategoryid=TEMP' \
-          '&stationid={}' \
-          '&startdate={}' \
-          '&enddate={}' \
-          '&limit=1000'.format(station_id, start_date, end_date)
-    # token as required by NOAA feed, you have to register for this
-    headers = {'token': token}
-    # send query string and header payload
-    http_response = requests.get(url, headers=headers)
-    # dump json into python dictionary
-    response = http_response.json()
+    # loop to pull entire weather data set, NOAA api only allows 1000 rows at a time
+    offset = 0
+    # some insurance if the weatherset isn't complete
+    data = pd.DataFrame()
 
-    # convert to pandas dataframe
-    data = pd.DataFrame(response['results'])
+
+    while True:
+        print(offset)
+        weather_data = get_weather_data(station_id, token, start_date, end_date, offset)
+        #if no data exit the loop
+        if not weather_data:
+            break
+        last_weather_date = dt.datetime.strptime(weather_data['results'][-1]['date'], '%Y-%m-%dT%H:%M:%S').date()
+        # increment by 1000 records
+        offset += 1000
+        # check if current date is available in the dataset, if it is append it to a dataframe
+        # if not stay in the loop
+        if last_weather_date == current_date.date():
+            break
+        # appends dataframe
+        data = data.append(pd.DataFrame(weather_data['results']))
+
     # filter results down to daily average
-    data = data[data['datatype'] == 'TAVG']
+    data = data[data['datatype'].isin(['TMAX', 'TMIN'])]
+
+    # pivot
+    data = data[['date', 'datatype', 'value']]
+    data = data.pivot(index='date', columns='datatype', values='value').reset_index().rename_axis(None, 1)
+
+    # create column with average temperature
+    data['value'] = (data['TMAX'] + data['TMIN']) / 2
+
     # temperature data from feed given in 10ths degrees C, divide by 10 to give whole degrees
     data['value'] = data['value'] / 10
 
@@ -146,8 +181,8 @@ def generate_graph(station_id, token):
     ax.plot(model_conlow_x, model_conlow_y, alpha=0.4, linestyle='--', color='black')
 
     #label axes
-    ax.set_xlabel('Chilling days')
-    ax.set_ylabel('Forcing days')
+    ax.set_xlabel('Chilling days', fontsize=16)
+    ax.set_ylabel('Forcing days', fontsize=16)
     ax.set_title('Chilling and forcing accumulations from {} through {}'.format(start_date, end_date), fontsize=12)
 
     #convert to binary to serve to webpage

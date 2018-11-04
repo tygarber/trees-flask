@@ -14,7 +14,7 @@
       /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
       #map {
-        height: 100%;
+        height: 75%;
       }
       /* Optional: Makes the sample page fill the window. */
       html, body {
@@ -25,7 +25,28 @@
     </style>
   </head>
   <body>
+    <div class="container">
+{#    <div class="row">#}
     <div id="map"></div>
+{#    </div>#}
+        <div class="row">
+        <div>
+            <p>
+                Click on a <span style="color:red">red</span> balloon to see the chilling and forcing unit accumulations (whatever color they are)  leading to the possibility line (whatever color it is) for reproductive budburst.
+            Note: it may take a while to download the weather data - be patient.
+            </p>
+        </div>
+        </div>
+    </div>
+  </body>
+<div>
+  <footer class="card-footer bg-light footer-font-style text-muted footer-position">
+      <div class="text-center">
+          Source: <a href="https://github.com/tygarber/trees-notebook">Notebook</a> | <a href="https://github.com/tygarber/trees-flask">Application</a>
+      </div>
+  </footer>
+</div>
+</html>
     <script>
       var map;
 
@@ -63,8 +84,7 @@
           }
       }
 
+
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_token }}&callback=initMap"
     async defer></script>
-  </body>
-</html>
