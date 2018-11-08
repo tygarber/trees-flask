@@ -183,7 +183,7 @@ def generate_graph(station_id, token):
     #label axes
     ax.set_xlabel('Chilling days', fontsize=16)
     ax.set_ylabel('Forcing days', fontsize=16)
-    ax.set_title('Chilling and forcing accumulations from {} through {}'.format(start_date, end_date), fontsize=12)
+    ax.set_title('Chilling and Forcing Accumulations \n {} through {}'.format(start_date, end_date), fontsize=16)
 
     #convert to binary to serve to webpage
     canvas = FigureCanvas(fig)
